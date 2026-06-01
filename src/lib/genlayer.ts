@@ -3,7 +3,7 @@ import type { GenLayerChain } from "genlayer-js";
 
 // Custom chain derived from the environment variables (or defaulting to local params)
 const customChain: GenLayerChain = {
-  id: Number(import.meta.env.VITE_CHAIN_ID || 1337),
+  id: Number(import.meta.env.VITE_CHAIN_ID || 61999),
   name: "GenLayer Custom",
   nativeCurrency: {
     name: "GEN",
@@ -12,7 +12,7 @@ const customChain: GenLayerChain = {
   },
   rpcUrls: {
     default: {
-      http: [import.meta.env.VITE_GENLAYER_RPC || "http://localhost:4000/api"],
+      http: [import.meta.env.VITE_GENLAYER_RPC || "https://studio.genlayer.com/api"],
     },
   },
 };

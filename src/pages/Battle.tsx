@@ -8,7 +8,7 @@ import { Trophy } from "lucide-react";
 
 export const Battle = () => {
   const { id } = useParams<{ id: string }>();
-  const { gameState, walletAddress, joinBattle, isLoading } = useGame();
+  const { gameState, walletAddress, joinBattle, resolveBattle, isLoading } = useGame();
   const navigate = useNavigate();
   
   const [showingStory, setShowingStory] = useState(false);

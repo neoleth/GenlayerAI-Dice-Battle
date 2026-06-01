@@ -24,7 +24,7 @@ async function startServer() {
       const prompt = `Write a 2-4 sentence fun fantasy battle story. ${winner} beat ${loser}. The dice rolls were ${winnerRoll} against ${loserRoll}. Explain how the winner defeated the loser using magic or weapons. Keep it fun and family-friendly.`;
       
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-2.0-flash",
         contents: prompt
       });
       

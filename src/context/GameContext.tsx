@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Battle, GameState } from "../types";
 import { getClient } from "../lib/genlayer";
+import { getDiceBattleCode } from "../lib/contract";
 import { BrowserProvider } from "ethers";
 import { toast } from "react-toastify";
 
 interface GameContextType {
   walletAddress: string | null;
+  genBalance: string | null;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
   gameState: GameState;
@@ -20,6 +22,7 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [genBalance, setGenBalance] = useState<string | null>(null);
   const [gameState, setGameState] = useState<GameState>({
     battles: {},
     leaderboard: {},
@@ -56,6 +59,25 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
     }
   }, []);
+
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (!walletAddress) {
+        setGenBalance(null);
+        return;
+      }
+      try {
+        const client = getClient();
+        if (client) {
+          const bal = await client.getBalance({ address: walletAddress as `0x${string}` });
+          setGenBalance((Number(bal) / 1e18).toFixed(2));
+        }
+      } catch (e) {
+        console.error("Failed to fetch GEN balance", e);
+      }
+    };
+    fetchBalance();
+  }, [walletAddress]);
 
   const connectWallet = async () => {
     if (!window.ethereum) {
@@ -96,11 +118,23 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     
     try {
-      // In this demo, since we use a single static contract from ENV, 
-      // we'll pretend we are creating a battle returning the contract address.
-      // If we wanted to deploy a new one, we would use client.deployContract()
+      const client = getClient();
+      if (!client) throw new Error("GenLayer client not found");
+      const code = await getDiceBattleCode();
       
-      const id = contractAddress || "local-battle-id";
+      toast.info("Deploying new battle contract...");
+      
+      const txHash = await client.deployContract({
+        code,
+        args: [walletAddress],
+      });
+      
+      const receipt = await client.waitForTransactionReceipt({ hash: txHash });
+      const contractAddr = receipt.contractAddress;
+      
+      if (!contractAddr) throw new Error("Failed to get contract address");
+      
+      const id = contractAddr;
       const newBattle: Battle = {
         id,
         creator: walletAddress,
@@ -114,7 +148,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         battles: { ...prev.battles, [id]: newBattle }
       }));
       
-      toast.success("Battle created on-chain (simulated for singleton)!");
+      toast.success("Battle created on-chain!");
       return id;
     } catch (e: any) {
       toast.error(e?.message || "Failed to create battle");
@@ -135,16 +169,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const client = getClient();
       if (!client) throw new Error("GenLayer client not found");
       
-      if (contractAddress) {
-        toast.info("Sending join_battle transaction...");
-        await client.writeContract({
-          address: contractAddress as `0x${string}`,
-          functionName: "join_battle",
-          args: [walletAddress],
-          value: 0n,
-        });
-        toast.success("Transaction confirmed!");
-      }
+      toast.info("Sending join_battle transaction...");
+      await client.writeContract({
+        address: battleId as `0x${string}`,
+        functionName: "join_battle",
+        args: [walletAddress],
+        value: 0n,
+      });
+      toast.success("Transaction confirmed!");
 
       setGameState(prev => {
         const battle = prev.battles[battleId];
@@ -180,38 +212,61 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         opponentRoll = Math.floor(Math.random() * 6) + 1;
       }
 
-      if (contractAddress) {
-        toast.info("Sending resolve_battle transaction...");
-        await client.writeContract({
-          address: contractAddress as `0x${string}`,
-          functionName: "resolve_battle",
-          args: [BigInt(creatorRoll), BigInt(opponentRoll)],
-          value: 0n,
-        });
-        toast.success("Winner determined on-chain!");
-      }
-      
-      const winnerName = await getWinner(battleId);
-      
       const battle = gameState.battles[battleId];
-      if (battle) {
-         setGameState(prev => {
-            return {
-               ...prev,
-               battles: {
-                 ...prev.battles,
-                 [battleId]: {
-                    ...battle, 
-                    status: "RESOLVED",
-                    creatorRoll,
-                    opponentRoll,
-                    winner: winnerName || battle.creator,
-                    story: "The AI judges decree: The rolled forces clashed, leading to an elemental victory!"
-                 }
-               }
-            }
-         });
+      if (!battle) throw new Error("Battle not found");
+
+      toast.info("Sending resolve_battle transaction...");
+      await client.writeContract({
+        address: battleId as `0x${string}`,
+        functionName: "resolve_battle",
+        args: [BigInt(creatorRoll), BigInt(opponentRoll)],
+        value: 0n,
+      });
+      toast.success("Winner determined on-chain!");
+      
+      let winnerName = await getWinner(battleId);
+      if (!winnerName) winnerName = battle.creator;
+      
+      const loserName = winnerName === battle.creator ? battle.opponent : battle.creator;
+      const winnerRoll = creatorRoll > opponentRoll ? creatorRoll : opponentRoll;
+      const loserRoll = creatorRoll > opponentRoll ? opponentRoll : creatorRoll;
+
+      let aiStory = "The forces clashed, leading to an elemental victory!";
+      try {
+        const storyRes = await fetch("/api/generate_story", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            winner: winnerName,
+            loser: loserName,
+            winnerRoll,
+            loserRoll,
+          }),
+        });
+        const storyData = await storyRes.json();
+        if (storyData.story) {
+           aiStory = storyData.story;
+        }
+      } catch (err) {
+        console.error("Failed to generate AI story", err);
       }
+      
+      setGameState(prev => {
+         return {
+            ...prev,
+            battles: {
+              ...prev.battles,
+              [battleId]: {
+                 ...battle, 
+                 status: "RESOLVED",
+                 creatorRoll,
+                 opponentRoll,
+                 winner: winnerName,
+                 story: aiStory,
+              }
+            }
+         }
+      });
     } catch (e: any) {
       toast.error(e?.message || "Failed to resolve battle");
       throw e;
@@ -221,12 +276,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const getWinner = async (battleId: string): Promise<string | null> => {
-     if (!contractAddress) return null;
      try {
         const client = getClient();
         if (!client) return null;
         const winner = await client.readContract({
-           address: contractAddress as `0x${string}`,
+           address: battleId as `0x${string}`,
            functionName: "get_winner",
            args: [],
         });
@@ -238,7 +292,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <GameContext.Provider value={{ walletAddress, connectWallet, disconnectWallet, gameState, createBattle, joinBattle, resolveBattle, getWinner, isLoading }}>
+    <GameContext.Provider value={{ walletAddress, genBalance, connectWallet, disconnectWallet, gameState, createBattle, joinBattle, resolveBattle, getWinner, isLoading }}>
       {children}
     </GameContext.Provider>
   );

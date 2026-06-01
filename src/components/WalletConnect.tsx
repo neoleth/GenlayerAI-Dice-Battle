@@ -5,7 +5,7 @@ import { Wallet, LogOut, Copy } from "lucide-react";
 import { toast } from "react-toastify";
 
 export const WalletConnect = () => {
-  const { walletAddress, connectWallet, disconnectWallet } = useGame();
+  const { walletAddress, genBalance, connectWallet, disconnectWallet } = useGame();
 
   const handleCopy = (address: string) => {
     navigator.clipboard.writeText(address);
@@ -29,7 +29,10 @@ export const WalletConnect = () => {
           title="Disconnect Wallet"
         >
           <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
-          <span className="text-xs font-mono text-[#d4af37]">{shortenAddress(walletAddress)}</span>
+          <span className="text-xs font-mono text-[#d4af37]">
+            {shortenAddress(walletAddress)}
+            {genBalance !== null ? ` | ${genBalance} GEN` : ''}
+          </span>
           <LogOut size={14} className="text-[#6e6e76] group-hover:text-red-400 transition-colors ml-1" />
         </button>
       </div>
