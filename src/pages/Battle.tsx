@@ -38,10 +38,12 @@ export const Battle = () => {
   const handleJoin = async () => {
     if (!id) return;
     try {
-      await joinBattle(id);
-    } catch (e) {
+      if (battle?.status === "OPEN" && !battle.opponent) {
+        await joinBattle(id);
+      }
+      await resolveBattle(id);
+    } catch (e: any) {
       console.error(e);
-      alert("Failed to join battle");
     }
   };
 

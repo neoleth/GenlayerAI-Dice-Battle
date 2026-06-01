@@ -1,22 +1,38 @@
 import React from "react";
 import { useGame } from "../context/GameContext";
 import { shortenAddress } from "../lib/utils";
-import { Wallet, LogOut } from "lucide-react";
+import { Wallet, LogOut, Copy } from "lucide-react";
+import { toast } from "react-toastify";
 
 export const WalletConnect = () => {
   const { walletAddress, connectWallet, disconnectWallet } = useGame();
 
+  const handleCopy = (address: string) => {
+    navigator.clipboard.writeText(address);
+    toast.success("Address copied!");
+  };
+
   if (walletAddress) {
     return (
-      <button 
-        onClick={disconnectWallet}
-        className="bg-[#1e1e24] border border-[#d4af37]/30 px-4 py-2 rounded-md flex items-center gap-3 hover:bg-[#2a2a32] transition-all group"
-        title="Disconnect Wallet"
-      >
-        <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
-        <span className="text-xs font-mono text-[#d4af37]">{shortenAddress(walletAddress)}</span>
-        <LogOut size={14} className="text-[#6e6e76] group-hover:text-red-400 transition-colors ml-1" />
-      </button>
+      <div className="flex items-center gap-2">
+        <button 
+          onClick={() => handleCopy(walletAddress)}
+          className="text-[#6e6e76] hover:text-[#d4af37] transition-colors p-2"
+          title="Copy Address"
+        >
+          <Copy size={16} />
+        </button>
+
+        <button 
+          onClick={disconnectWallet}
+          className="bg-[#1e1e24] border border-[#d4af37]/30 px-4 py-2 rounded-md flex items-center gap-3 hover:bg-[#2a2a32] transition-all group"
+          title="Disconnect Wallet"
+        >
+          <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+          <span className="text-xs font-mono text-[#d4af37]">{shortenAddress(walletAddress)}</span>
+          <LogOut size={14} className="text-[#6e6e76] group-hover:text-red-400 transition-colors ml-1" />
+        </button>
+      </div>
     );
   }
 

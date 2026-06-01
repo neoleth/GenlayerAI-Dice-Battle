@@ -1,162 +1,235 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { Battle, GameState, PlayerStats } from "../types";
+import { Battle, GameState } from "../types";
+import { getClient } from "../lib/genlayer";
+import { BrowserProvider } from "ethers";
+import { toast } from "react-toastify";
 
 interface GameContextType {
   walletAddress: string | null;
-  connectWallet: () => void;
+  connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
   gameState: GameState;
   createBattle: (wager: number) => Promise<string>;
   joinBattle: (battleId: string) => Promise<void>;
+  resolveBattle: (battleId: string) => Promise<void>;
+  getWinner: (battleId: string) => Promise<string | null>;
   isLoading: boolean;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
-// Simulated initial leaderboard to show some UI
-const INITIAL_LEADERBOARD = {
-  "0x1234567890abcdef1234567890abcdef12345678": { address: "0x1234567890abcdef1234567890abcdef12345678", wins: 12, totalBattles: 15 },
-  "0xabcdef1234567890abcdef1234567890abcdef12": { address: "0xabcdef1234567890abcdef1234567890abcdef12", wins: 8, totalBattles: 10 },
-};
-
-// Single dummy battle to show in lobby
-const INITIAL_BATTLES = {
-  "b-100": {
-    id: "b-100",
-    creator: "0xabcdef1234567890abcdef1234567890abcdef12",
-    wager: 100,
-    status: "OPEN" as const,
-    timestamp: Date.now(),
-  }
-};
-
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [gameState, setGameState] = useState<GameState>({
-    battles: INITIAL_BATTLES,
-    leaderboard: INITIAL_LEADERBOARD,
+    battles: {},
+    leaderboard: {},
   });
   const [isLoading, setIsLoading] = useState(false);
+  const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS || "";
 
-  const connectWallet = () => {
-    // Mock connecting wallet
-    const mockAddress = "0x" + Array.from({length: 40}, () => Math.floor(Math.random()*16).toString(16)).join('');
-    setWalletAddress(mockAddress);
-    
-    // Add to leaderboard if not exists
-    setGameState(prev => {
-      if (!prev.leaderboard[mockAddress]) {
-        return {
-          ...prev,
-          leaderboard: {
-            ...prev.leaderboard,
-            [mockAddress]: { address: mockAddress, wins: 0, totalBattles: 0 }
+  useEffect(() => {
+    const checkConnection = async () => {
+      if (window.ethereum) {
+        try {
+          const provider = new BrowserProvider(window.ethereum);
+          const accounts = await provider.listAccounts();
+          if (accounts.length > 0) {
+            setWalletAddress(accounts[0].address);
           }
-        };
+        } catch (e) {
+          console.error("Failed to check connection", e);
+        }
       }
-      return prev;
-    });
+    };
+    checkConnection();
+
+    if (window.ethereum) {
+      window.ethereum.on('accountsChanged', (accounts: string[]) => {
+        if (accounts.length > 0) {
+          setWalletAddress(accounts[0]);
+        } else {
+          setWalletAddress(null);
+        }
+      });
+      window.ethereum.on('chainChanged', () => {
+        window.location.reload();
+      });
+    }
+  }, []);
+
+  const connectWallet = async () => {
+    if (!window.ethereum) {
+      toast.error("MetaMask not found!");
+      return;
+    }
+    try {
+      setIsLoading(true);
+      const provider = new BrowserProvider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      const signer = await provider.getSigner();
+      const address = await signer.getAddress();
+      setWalletAddress(address);
+      toast.success("Wallet connected!");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to connect wallet");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const disconnectWallet = () => setWalletAddress(null);
 
   const createBattle = async (wager: number) => {
-    if (!walletAddress) throw new Error("Wallet not connected");
+    if (!walletAddress) {
+      await connectWallet();
+      if (!walletAddress) throw new Error("Wallet not connected");
+    }
     setIsLoading(true);
     
-    // Simulate GenLayer transaction delay
-    await new Promise(r => setTimeout(r, 1000));
-    
-    const id = "b-" + Math.floor(Math.random() * 1000000);
-    const newBattle: Battle = {
-      id,
-      creator: walletAddress,
-      wager,
-      status: "OPEN",
-      timestamp: Date.now(),
-    };
-    
-    setGameState(prev => ({
-      ...prev,
-      battles: { ...prev.battles, [id]: newBattle }
-    }));
-    
-    setIsLoading(false);
-    return id;
+    try {
+      // In this demo, since we use a single static contract from ENV, 
+      // we'll pretend we are creating a battle returning the contract address.
+      // If we wanted to deploy a new one, we would use client.deployContract()
+      
+      const id = contractAddress || "local-battle-id";
+      const newBattle: Battle = {
+        id,
+        creator: walletAddress,
+        wager,
+        status: "OPEN",
+        timestamp: Date.now(),
+      };
+      
+      setGameState(prev => ({
+        ...prev,
+        battles: { ...prev.battles, [id]: newBattle }
+      }));
+      
+      toast.success("Battle created on-chain (simulated for singleton)!");
+      return id;
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to create battle");
+      throw e;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const joinBattle = async (battleId: string) => {
+    if (!walletAddress) {
+      await connectWallet();
+    }
     if (!walletAddress) throw new Error("Wallet not connected");
     setIsLoading(true);
     
-    const battle = gameState.battles[battleId];
-    if (!battle || battle.status !== "OPEN") {
-      setIsLoading(false);
-      throw new Error("Battle not available");
-    }
-
-    // Simulate GenLayer resolving transaction
-    let creatorRoll = Math.floor(Math.random() * 6) + 1;
-    let opponentRoll = Math.floor(Math.random() * 6) + 1;
-    
-    while (creatorRoll === opponentRoll) {
-      creatorRoll = Math.floor(Math.random() * 6) + 1;
-      opponentRoll = Math.floor(Math.random() * 6) + 1;
-    }
-    
-    const winner = creatorRoll > opponentRoll ? battle.creator : walletAddress;
-    const loser = creatorRoll > opponentRoll ? walletAddress : battle.creator;
-    const winnerRoll = Math.max(creatorRoll, opponentRoll);
-    const loserRoll = Math.min(creatorRoll, opponentRoll);
-
-    let story = "";
     try {
-      // Call backend API to use Gemini for story generation
-      const res = await fetch("/api/generate_story", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ winner, loser, winnerRoll, loserRoll })
-      });
-      const data = await res.json();
-      if (data.story) {
-        story = data.story;
+      const client = getClient();
+      if (!client) throw new Error("GenLayer client not found");
+      
+      if (contractAddress) {
+        toast.info("Sending join_battle transaction...");
+        await client.writeContract({
+          address: contractAddress as `0x${string}`,
+          functionName: "join_battle",
+          args: [walletAddress],
+          value: 0n,
+        });
+        toast.success("Transaction confirmed!");
       }
-    } catch (e) {
-      console.error(e);
-      story = `${winner} rolled a ${winnerRoll} against ${loserRoll}. A decisive elemental strike secured the victory!`;
-    }
 
-    const resolvedBattle: Battle = {
-      ...battle,
-      status: "RESOLVED",
-      opponent: walletAddress,
-      creatorRoll,
-      opponentRoll,
-      winner,
-      story,
-    };
+      setGameState(prev => {
+        const battle = prev.battles[battleId];
+        if (!battle) return prev;
+        return {
+          ...prev,
+          battles: {
+            ...prev.battles,
+            [battleId]: { ...battle, opponent: walletAddress }
+          }
+        };
+      });
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to join battle");
+      throw e;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resolveBattle = async (battleId: string) => {
+    if (!walletAddress) throw new Error("Wallet not connected");
+    setIsLoading(true);
     
-    setGameState(prev => {
-      const nextBoard = { ...prev.leaderboard };
-      if (!nextBoard[winner]) nextBoard[winner] = { address: winner, wins: 0, totalBattles: 0 };
-      if (!nextBoard[loser]) nextBoard[loser] = { address: loser, wins: 0, totalBattles: 0 };
+    try {
+      const client = getClient();
+      if (!client) throw new Error("GenLayer client not found");
+
+      let creatorRoll = Math.floor(Math.random() * 6) + 1;
+      let opponentRoll = Math.floor(Math.random() * 6) + 1;
+      while (creatorRoll === opponentRoll) {
+        creatorRoll = Math.floor(Math.random() * 6) + 1;
+        opponentRoll = Math.floor(Math.random() * 6) + 1;
+      }
+
+      if (contractAddress) {
+        toast.info("Sending resolve_battle transaction...");
+        await client.writeContract({
+          address: contractAddress as `0x${string}`,
+          functionName: "resolve_battle",
+          args: [BigInt(creatorRoll), BigInt(opponentRoll)],
+          value: 0n,
+        });
+        toast.success("Winner determined on-chain!");
+      }
       
-      nextBoard[winner].wins += 1;
-      nextBoard[winner].totalBattles += 1;
-      nextBoard[loser].totalBattles += 1;
+      const winnerName = await getWinner(battleId);
       
-      return {
-        ...prev,
-        battles: { ...prev.battles, [battleId]: resolvedBattle },
-        leaderboard: nextBoard,
-      };
-    });
-    
-    setIsLoading(false);
+      const battle = gameState.battles[battleId];
+      if (battle) {
+         setGameState(prev => {
+            return {
+               ...prev,
+               battles: {
+                 ...prev.battles,
+                 [battleId]: {
+                    ...battle, 
+                    status: "RESOLVED",
+                    creatorRoll,
+                    opponentRoll,
+                    winner: winnerName || battle.creator,
+                    story: "The AI judges decree: The rolled forces clashed, leading to an elemental victory!"
+                 }
+               }
+            }
+         });
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to resolve battle");
+      throw e;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getWinner = async (battleId: string): Promise<string | null> => {
+     if (!contractAddress) return null;
+     try {
+        const client = getClient();
+        if (!client) return null;
+        const winner = await client.readContract({
+           address: contractAddress as `0x${string}`,
+           functionName: "get_winner",
+           args: [],
+        });
+        return String(winner) || null;
+     } catch (e) {
+        console.error("Failed to fetch winner on-chain", e);
+        return null;
+     }
   };
 
   return (
-    <GameContext.Provider value={{ walletAddress, connectWallet, disconnectWallet, gameState, createBattle, joinBattle, isLoading }}>
+    <GameContext.Provider value={{ walletAddress, connectWallet, disconnectWallet, gameState, createBattle, joinBattle, resolveBattle, getWinner, isLoading }}>
       {children}
     </GameContext.Provider>
   );
