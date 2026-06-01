@@ -35,10 +35,11 @@ async function startServer() {
     }
   });
 
+  const rpcUrl = process.env.VITE_GENLAYER_RPC || "https://zksync-os-testnet-genlayer.zksync.dev";
   // GenLayer RPC Proxy to bypass browser CORS/iframe restrictions
   app.post("/api/rpc", async (req, res) => {
     try {
-      const response = await fetch("https://studio.genlayer.com/api", {
+      const response = await fetch(rpcUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(req.body)

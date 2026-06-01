@@ -3,7 +3,7 @@ import { createClient, chains } from "genlayer-js";
 // Use the official GenLayer testnet chain config if matching,
 // otherwise build a custom chain from env vars.
 const getRpcUrl = () =>
-  import.meta.env.VITE_GENLAYER_RPC || "https://studio.genlayer.com/api";
+  import.meta.env.VITE_GENLAYER_RPC || "https://zksync-os-testnet-genlayer.zksync.dev";
 
 const getChainId = () =>
   Number(import.meta.env.VITE_CHAIN_ID || 61999);
