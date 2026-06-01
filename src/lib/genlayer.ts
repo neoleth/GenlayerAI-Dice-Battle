@@ -1,5 +1,4 @@
 import { createClient, chains } from "genlayer-js";
-import type { GenLayerChain } from "genlayer-js";
 
 // Use the official GenLayer testnet chain config if matching,
 // otherwise build a custom chain from env vars.
@@ -9,25 +8,25 @@ const getRpcUrl = () =>
 const getChainId = () =>
   Number(import.meta.env.VITE_CHAIN_ID || 61999);
 
-// Build a GenLayerChain that matches the testnet structure
+// Build a chain that matches the testnet structure
 // (consensusMainContract is required by _sendTransaction)
-const buildChain = (): GenLayerChain => {
+const buildChain = (): any => {
   const rpc = getRpcUrl();
   const id = getChainId();
 
   // Prefer the official chain objects so consensusMainContract is correct
   const officialChain = Object.values(chains).find((c: any) => c.id === id);
-  if (officialChain) return officialChain as GenLayerChain;
+  if (officialChain) return officialChain as any;
 
   // Fallback custom chain — consensusMainContract must be set for writes to work
-  const customChain: GenLayerChain = {
+  const customChain: any = {
     id,
     name: "GenLayer Custom",
     nativeCurrency: { name: "GEN", symbol: "GEN", decimals: 18 },
     rpcUrls: { default: { http: [rpc] } },
     // NOTE: If using a custom RPC you must also provide consensusMainContract
     // consensusMainContract: { address: "0x..." },
-  } as GenLayerChain;
+  };
 
   return customChain;
 };
@@ -48,6 +47,7 @@ export const getClient = (walletAddress?: string | null) => {
   return createClient({
     chain: buildChain(),
     provider: window.ethereum,
+    endpoint: "/api/rpc", // Use local proxy to bypass CORS/iframe issues
     // Pass the connected address so validateAccount() doesn't throw.
     // genlayer-js treats a plain string address as "use provider for signing".
     ...(walletAddress ? { account: walletAddress as `0x${string}` } : {}),

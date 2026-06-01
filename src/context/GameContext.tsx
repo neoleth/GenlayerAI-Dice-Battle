@@ -149,8 +149,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setTxHash(txHashStr);
       setTxStatus("confirming");
       
-      const receipt = await client.waitForTransactionReceipt({ hash: txHashStr });
-      const contractAddr = receipt.contractAddress;
+      const receipt = await client.waitForTransactionReceipt({ hash: txHashStr as any });
+      const contractAddr = (receipt as any).contractAddress || (receipt as any).contract_address;
       
       if (!contractAddr) throw new Error("Failed to get contract address");
       
