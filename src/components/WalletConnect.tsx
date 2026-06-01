@@ -5,7 +5,7 @@ import { Wallet, LogOut, Copy } from "lucide-react";
 import { toast } from "react-toastify";
 
 export const WalletConnect = () => {
-  const { walletAddress, genBalance, connectWallet, disconnectWallet } = useGame();
+  const { walletAddress, genBalance, networkName, connectWallet, disconnectWallet } = useGame();
 
   const handleCopy = (address: string) => {
     navigator.clipboard.writeText(address);
@@ -15,6 +15,12 @@ export const WalletConnect = () => {
   if (walletAddress) {
     return (
       <div className="flex items-center gap-2">
+        {networkName && (
+           <div className="hidden md:flex border border-[#d4af37]/30 bg-[#16161c] px-3 py-1.5 rounded-md items-center gap-2">
+             <div className="w-1.5 h-1.5 rounded-full bg-[#d4af37] shadow-[0_0_8px_rgba(212,175,55,0.6)]"></div>
+             <span className="text-[10px] uppercase font-bold tracking-widest text-[#d4af37]">{networkName}</span>
+           </div>
+        )}
         <button 
           onClick={() => handleCopy(walletAddress)}
           className="text-[#6e6e76] hover:text-[#d4af37] transition-colors p-2"

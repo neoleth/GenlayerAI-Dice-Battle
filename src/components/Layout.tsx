@@ -1,6 +1,7 @@
 import React from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { WalletConnect } from "./WalletConnect";
+import { GlobalTxTracker } from "./GlobalTxTracker";
 import { Home, Swords, Trophy } from "lucide-react";
 import { cn } from "../lib/utils";
 import { ToastContainer } from "react-toastify";
@@ -18,6 +19,7 @@ export const Layout = () => {
   return (
     <div className="min-h-screen bg-[#0a0a0c] text-[#e0e0e0] font-sans selection:bg-[#d4af37]/30 flex flex-col relative overflow-hidden">
       <ToastContainer theme="dark" position="bottom-right" />
+      <GlobalTxTracker />
       {/* Header */}
       <header className="relative z-10 border-b border-[#2a2a2e] bg-[#121216] px-4 md:px-8 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">

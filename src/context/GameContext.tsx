@@ -8,6 +8,9 @@ import { toast } from "react-toastify";
 interface GameContextType {
   walletAddress: string | null;
   genBalance: string | null;
+  networkName: string | null;
+  txStatus: "idle" | "pending" | "confirming" | "success" | "error";
+  txHash: string | null;
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
   gameState: GameState;
@@ -23,6 +26,9 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [genBalance, setGenBalance] = useState<string | null>(null);
+  const [networkName, setNetworkName] = useState<string | null>(null);
+  const [txStatus, setTxStatus] = useState<"idle" | "pending" | "confirming" | "success" | "error">("idle");
+  const [txHash, setTxHash] = useState<string | null>(null);
   const [gameState, setGameState] = useState<GameState>({
     battles: {},
     leaderboard: {},
@@ -64,6 +70,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const fetchBalance = async () => {
       if (!walletAddress) {
         setGenBalance(null);
+        setNetworkName(null);
         return;
       }
       try {
@@ -71,6 +78,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (client) {
           const bal = await client.getBalance({ address: walletAddress as `0x${string}` });
           setGenBalance((Number(bal) / 1e18).toFixed(2));
+          // fetch network
+          const provider = new BrowserProvider(window.ethereum);
+          const network = await provider.getNetwork();
+          setNetworkName(network.name === "unknown" ? "GenLayer Testnet" : network.name);
         }
       } catch (e) {
         console.error("Failed to fetch GEN balance", e);
@@ -121,6 +132,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!walletAddress) throw new Error("Wallet not connected");
     }
     setIsLoading(true);
+    setTxStatus("pending");
+    setTxHash(null);
     
     try {
       const client = getClient();
@@ -129,12 +142,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       toast.info("Deploying new battle contract...");
       
-      const txHash = await client.deployContract({
+      const txHashStr = await client.deployContract({
         code,
         args: [walletAddress, BigInt(wager)],
       });
+      setTxHash(txHashStr);
+      setTxStatus("confirming");
       
-      const receipt = await client.waitForTransactionReceipt({ hash: txHash });
+      const receipt = await client.waitForTransactionReceipt({ hash: txHashStr });
       const contractAddr = receipt.contractAddress;
       
       if (!contractAddr) throw new Error("Failed to get contract address");
@@ -153,13 +168,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         battles: { ...prev.battles, [id]: newBattle }
       }));
       
+      setTxStatus("success");
       toast.success("Battle created on-chain!");
       return id;
     } catch (e: any) {
+      setTxStatus("error");
       toast.error(e?.message || "Failed to create battle");
       throw e;
     } finally {
       setIsLoading(false);
+      setTimeout(() => setTxStatus("idle"), 5000);
     }
   };
 
@@ -169,18 +187,27 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     if (!walletAddress) throw new Error("Wallet not connected");
     setIsLoading(true);
+    setTxStatus("pending");
+    setTxHash(null);
     
     try {
       const client = getClient();
       if (!client) throw new Error("GenLayer client not found");
       
       toast.info("Sending join_battle transaction...");
-      await client.writeContract({
+      const txHashStr = await client.writeContract({
         address: battleId as `0x${string}`,
         functionName: "join_battle",
         args: [walletAddress],
         value: 0n,
       });
+      setTxHash(txHashStr);
+      setTxStatus("confirming");
+      
+      // wait for receipt
+      await client.waitForTransactionReceipt({ hash: txHashStr });
+      
+      setTxStatus("success");
       toast.success("Transaction confirmed!");
 
       setGameState(prev => {
@@ -195,16 +222,20 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       });
     } catch (e: any) {
+      setTxStatus("error");
       toast.error(e?.message || "Failed to join battle");
       throw e;
     } finally {
       setIsLoading(false);
+      setTimeout(() => setTxStatus("idle"), 5000);
     }
   };
 
   const resolveBattle = async (battleId: string) => {
     if (!walletAddress) throw new Error("Wallet not connected");
     setIsLoading(true);
+    setTxStatus("pending");
+    setTxHash(null);
     
     try {
       const client = getClient();
@@ -221,12 +252,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!battle) throw new Error("Battle not found");
 
       toast.info("Sending resolve_battle transaction...");
-      await client.writeContract({
+      const txHashStr = await client.writeContract({
         address: battleId as `0x${string}`,
         functionName: "resolve_battle",
         args: [BigInt(creatorRoll), BigInt(opponentRoll)],
         value: 0n,
       });
+      setTxHash(txHashStr);
+      setTxStatus("confirming");
+      
+      await client.waitForTransactionReceipt({ hash: txHashStr });
+      setTxStatus("success");
       toast.success("Winner determined on-chain!");
       
       let winnerName = await getWinner(battleId);
@@ -273,10 +309,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
          }
       });
     } catch (e: any) {
+      setTxStatus("error");
       toast.error(e?.message || "Failed to resolve battle");
       throw e;
     } finally {
       setIsLoading(false);
+      setTimeout(() => setTxStatus("idle"), 5000);
     }
   };
 
@@ -297,7 +335,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <GameContext.Provider value={{ walletAddress, genBalance, connectWallet, disconnectWallet, gameState, createBattle, joinBattle, resolveBattle, getWinner, isLoading }}>
+    <GameContext.Provider value={{ walletAddress, genBalance, networkName, txStatus, txHash, connectWallet, disconnectWallet, gameState, createBattle, joinBattle, resolveBattle, getWinner, isLoading }}>
       {children}
     </GameContext.Provider>
   );
