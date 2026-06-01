@@ -1,0 +1,6 @@
+{
+  "name": "AI Dice Battle",
+  "description": "An on-chain PvP game built on GenLayer featuring dice roll battles and AI-generated combat stories.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
