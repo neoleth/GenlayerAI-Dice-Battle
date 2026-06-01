@@ -90,8 +90,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     try {
       setIsLoading(true);
+      if (window.ethereum?.request) {
+         await window.ethereum.request({ method: "eth_requestAccounts" });
+      } else {
+         const provider = new BrowserProvider(window.ethereum);
+         await provider.send("eth_requestAccounts", []);
+      }
       const provider = new BrowserProvider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
       setWalletAddress(address);
@@ -126,7 +131,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       const txHash = await client.deployContract({
         code,
-        args: [walletAddress],
+        args: [walletAddress, BigInt(wager)],
       });
       
       const receipt = await client.waitForTransactionReceipt({ hash: txHash });
