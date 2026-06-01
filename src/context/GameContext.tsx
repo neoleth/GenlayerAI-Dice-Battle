@@ -62,6 +62,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toast.error("MetaMask not found!");
       return;
     }
+    
+    // Prevent multiple connection requests triggering at once
+    if (isLoading) return;
+    
     try {
       setIsLoading(true);
       const provider = new BrowserProvider(window.ethereum);
@@ -71,7 +75,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setWalletAddress(address);
       toast.success("Wallet connected!");
     } catch (e: any) {
-      toast.error(e?.message || "Failed to connect wallet");
+      // Check for user rejection or pending request
+      if (e.code === 'ACTION_REJECTED' || e.info?.error?.code === 4001 || e.message?.includes('already pending')) {
+        toast.info("Please open MetaMask and accept the connection request.");
+      } else {
+        toast.error(e?.message || "Failed to connect wallet");
+      }
     } finally {
       setIsLoading(false);
     }
