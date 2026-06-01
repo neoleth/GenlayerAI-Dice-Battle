@@ -74,7 +74,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       try {
-        const client = getClient();
+        const client = getClient(walletAddress);
         if (client) {
           const bal = await client.getBalance({ address: walletAddress as `0x${string}` });
           setGenBalance((Number(bal) / 1e18).toFixed(2));
@@ -136,7 +136,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setTxHash(null);
     
     try {
-      const client = getClient();
+      const client = getClient(walletAddress);
       if (!client) throw new Error("GenLayer client not found");
       const code = await getDiceBattleCode();
       
@@ -191,7 +191,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setTxHash(null);
     
     try {
-      const client = getClient();
+      const client = getClient(walletAddress);
       if (!client) throw new Error("GenLayer client not found");
       
       toast.info("Sending join_battle transaction...");
@@ -238,7 +238,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setTxHash(null);
     
     try {
-      const client = getClient();
+      const client = getClient(walletAddress);
       if (!client) throw new Error("GenLayer client not found");
 
       let creatorRoll = Math.floor(Math.random() * 6) + 1;
@@ -320,7 +320,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const getWinner = async (battleId: string): Promise<string | null> => {
      try {
-        const client = getClient();
+        const client = getClient(walletAddress);
         if (!client) return null;
         const winner = await client.readContract({
            address: battleId as `0x${string}`,
