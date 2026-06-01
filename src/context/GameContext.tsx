@@ -76,8 +76,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toast.success("Wallet connected!");
     } catch (e: any) {
       // Check for user rejection or pending request
-      if (e.code === 'ACTION_REJECTED' || e.info?.error?.code === 4001 || e.message?.includes('already pending')) {
-        toast.info("Please open MetaMask and accept the connection request.");
+      if (e.code === 'ACTION_REJECTED' || e.info?.error?.code === 4001 || e.message?.includes('already pending') || e.code === -32002) {
+        toast.info("Connection request pending! Please click the MetaMask extension icon in your browser toolbar to accept. Note: You may need to open this app in a new tab to connect.", { autoClose: 10000 });
       } else {
         toast.error(e?.message || "Failed to connect wallet");
       }
