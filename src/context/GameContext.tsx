@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { Battle, GameState } from "../types";
 import { getClient } from "../lib/genlayer";
 import { getDiceBattleCode } from "../lib/contract";
-import { BrowserProvider } from "ethers";
+import { BrowserProvider, parseEther } from "ethers";
 import { toast } from "react-toastify";
 
 interface GameContextType {
@@ -19,6 +19,8 @@ interface GameContextType {
   resolveBattle: (battleId: string) => Promise<void>;
   getWinner: (battleId: string) => Promise<string | null>;
   isLoading: boolean;
+  isCorrectNetwork: boolean;
+  switchNetwork: () => Promise<void>;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -27,6 +29,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [genBalance, setGenBalance] = useState<string | null>(null);
   const [networkName, setNetworkName] = useState<string | null>(null);
+  const [isCorrectNetwork, setIsCorrectNetwork] = useState<boolean>(true);
   const [txStatus, setTxStatus] = useState<"idle" | "pending" | "confirming" | "success" | "error">("idle");
   const [txHash, setTxHash] = useState<string | null>(null);
   const [gameState, setGameState] = useState<GameState>({
@@ -76,12 +79,20 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const client = getClient(walletAddress);
         if (client) {
-          const bal = await client.getBalance({ address: walletAddress as `0x${string}` });
-          setGenBalance((Number(bal) / 1e18).toFixed(2));
-          // fetch network
+          const expectedChainId = Number(import.meta.env.VITE_CHAIN_ID || 61999);
           const provider = new BrowserProvider(window.ethereum);
           const network = await provider.getNetwork();
+          const currentChainId = Number(network.chainId);
+          
+          setIsCorrectNetwork(currentChainId === expectedChainId);
           setNetworkName(network.name === "unknown" ? "GenLayer Testnet" : network.name);
+          
+          if (currentChainId === expectedChainId) {
+             const bal = await client.getBalance({ address: walletAddress as `0x${string}` });
+             setGenBalance((Number(bal) / 1e18).toFixed(2));
+          } else {
+             setGenBalance("0.00");
+          }
         }
       } catch (e) {
         console.error("Failed to fetch GEN balance", e);
@@ -89,6 +100,44 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     fetchBalance();
   }, [walletAddress]);
+
+  const switchNetwork = async () => {
+    if (!window.ethereum) return;
+    const targetChainId = `0x${Number(import.meta.env.VITE_CHAIN_ID || 61999).toString(16)}`;
+    try {
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: targetChainId }],
+      });
+    } catch (switchError: any) {
+      if (switchError.code === 4902) {
+        try {
+          await window.ethereum.request({
+            method: "wallet_addEthereumChain",
+            params: [
+              {
+                chainId: targetChainId,
+                chainName: "GenLayer Testnet",
+                rpcUrls: [import.meta.env.VITE_GENLAYER_RPC || "https://zksync-os-testnet-genlayer.zksync.dev"],
+                nativeCurrency: {
+                  name: "GEN Token",
+                  symbol: "GEN",
+                  decimals: 18,
+                },
+                blockExplorerUrls: ["https://zksync-os-testnet-genlayer.explorer.zksync.dev"],
+              },
+            ],
+          });
+        } catch (addError) {
+          console.error("Failed to add GenLayer network", addError);
+          toast.error("Failed to add GenLayer network.");
+        }
+      } else {
+        console.error("Failed to switch network", switchError);
+        toast.error("Failed to switch network.");
+      }
+    }
+  };
 
   const connectWallet = async () => {
     if (!window.ethereum) {
@@ -142,6 +191,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       toast.info("Deploying new battle contract...");
       
+      const wagerValue = parseEther(wager.toString());
+
       const txHashStr = await client.deployContract({
         code,
         args: [walletAddress, BigInt(wager)],
@@ -194,12 +245,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const client = getClient(walletAddress);
       if (!client) throw new Error("GenLayer client not found");
       
+      const battle = gameState.battles[battleId];
+      if (!battle) throw new Error("Battle not found");
+
       toast.info("Sending join_battle transaction...");
+      
+      const wagerValue = parseEther(battle.wager.toString());
+
       const txHashStr = await client.writeContract({
         address: battleId as `0x${string}`,
         functionName: "join_battle",
         args: [walletAddress],
-        value: 0n,
+        value: wagerValue,
       });
       setTxHash(txHashStr);
       setTxStatus("confirming");
@@ -282,6 +339,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             loser: loserName,
             winnerRoll,
             loserRoll,
+            wager: battle.wager
           }),
         });
         const storyData = await storyRes.json();
@@ -293,8 +351,33 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       setGameState(prev => {
+         const newLeaderboard = { ...prev.leaderboard };
+         
+         // Helper to initialize missing stats
+         const initStats = (addr: string) => {
+           if (!newLeaderboard[addr]) {
+             newLeaderboard[addr] = { address: addr, wins: 0, totalBattles: 0, totalGenWon: 0, largestVictory: 0 };
+           }
+         };
+         
+         initStats(battle.creator);
+         initStats(battle.opponent!);
+
+         newLeaderboard[battle.creator].totalBattles += 1;
+         newLeaderboard[battle.opponent!].totalBattles += 1;
+
+         if (winnerName && winnerName !== "DRAW") {
+            const reward = battle.wager * 2; // total pool simplified
+            newLeaderboard[winnerName].wins += 1;
+            newLeaderboard[winnerName].totalGenWon += reward;
+            if (reward > newLeaderboard[winnerName].largestVictory) {
+               newLeaderboard[winnerName].largestVictory = reward;
+            }
+         }
+
          return {
             ...prev,
+            leaderboard: newLeaderboard,
             battles: {
               ...prev.battles,
               [battleId]: {
@@ -335,7 +418,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <GameContext.Provider value={{ walletAddress, genBalance, networkName, txStatus, txHash, connectWallet, disconnectWallet, gameState, createBattle, joinBattle, resolveBattle, getWinner, isLoading }}>
+    <GameContext.Provider value={{ walletAddress, genBalance, networkName, txStatus, txHash, connectWallet, disconnectWallet, gameState, createBattle, joinBattle, resolveBattle, getWinner, isLoading, isCorrectNetwork, switchNetwork }}>
       {children}
     </GameContext.Provider>
   );

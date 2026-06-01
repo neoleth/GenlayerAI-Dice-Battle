@@ -64,6 +64,14 @@ export const Leaderboard = () => {
                   </div>
                   
                   <div className="flex items-center gap-6">
+                     <div className="text-right hidden sm:block">
+                       <p className="text-[10px] text-[#6e6e76] uppercase tracking-widest mb-0.5">GEN Won</p>
+                       <p className="text-sm font-bold text-green-400">{player.totalGenWon || 0}</p>
+                     </div>
+                     <div className="text-right hidden md:block">
+                       <p className="text-[10px] text-[#6e6e76] uppercase tracking-widest mb-0.5">Max Win</p>
+                       <p className="text-sm font-bold text-[#d4af37]">{player.largestVictory || 0}</p>
+                     </div>
                      <div className="text-right">
                        <p className="text-[10px] text-[#6e6e76] uppercase tracking-widest mb-0.5">Wins</p>
                        <p className={`text-sm font-bold ${isTop3 ? 'text-[#d4af37]' : 'text-white'}`}>{player.wins}</p>

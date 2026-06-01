@@ -12,7 +12,7 @@ async function startServer() {
   // AI Narrative Endpoint
   app.post("/api/generate_story", async (req, res) => {
     try {
-      const { winner, loser, winnerRoll, loserRoll } = req.body;
+      const { winner, loser, winnerRoll, loserRoll, wager } = req.body;
       
       const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) {
@@ -21,7 +21,16 @@ async function startServer() {
       
       const ai = new GoogleGenAI({ apiKey });
       
-      const prompt = `Write a 2-4 sentence fun fantasy battle story. ${winner} beat ${loser}. The dice rolls were ${winnerRoll} against ${loserRoll}. Explain how the winner defeated the loser using magic or weapons. Keep it fun and family-friendly.`;
+      const prompt = `Write a fantasy style battle story. 
+Players: ${winner} (Winner) vs ${loser} (Loser).
+Dice Rolls: ${winnerRoll} vs ${loserRoll}.
+Stake Amount: ${wager} GEN tokens.
+Requirements:
+1. Must mention both wallet player addresses (maybe shortened if needed, but refer to them).
+2. Must mention the exact dice values.
+3. Must mention the stake amount (${wager} GEN).
+4. Must explicitly mention who won.
+5. Maximum 4 sentences long.`;
       
       const response = await ai.models.generateContent({
         model: "gemini-2.0-flash",

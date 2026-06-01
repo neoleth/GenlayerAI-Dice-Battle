@@ -17,6 +17,8 @@ export interface PlayerStats {
   address: string;
   wins: number;
   totalBattles: number;
+  totalGenWon: number;
+  largestVictory: number;
 }
 
 export interface GameState {
