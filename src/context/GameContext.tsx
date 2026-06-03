@@ -124,7 +124,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   symbol: "GEN",
                   decimals: 18,
                 },
-                blockExplorerUrls: ["https://zksync-os-testnet-genlayer.explorer.zksync.dev"],
+                blockExplorerUrls: [import.meta.env.VITE_EXPLORER || "https://zksync-os-testnet-genlayer.explorer.zksync.dev"],
               },
             ],
           });
