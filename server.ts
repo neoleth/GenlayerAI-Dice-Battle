@@ -43,7 +43,19 @@ Requirements:
   // Proxies all JSON-RPC calls to the real GenLayer Bradbury testnet.
   // This bypasses CORS/iframe restrictions in browser/AI Studio environments.
   // Target RPC comes from VITE_GENLAYER_RPC env var.
+  app.options("/api/rpc", (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type");
+    res.sendStatus(200);
+  });
+
   app.post("/api/rpc", async (req, res) => {
+    // Add CORS headers so MetaMask and the browser can seamlessly use our proxy
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type");
+
     const targetRpc = process.env.VITE_GENLAYER_RPC || "https://rpc-bradbury.genlayer.com";
     try {
       const response = await fetch(targetRpc, {

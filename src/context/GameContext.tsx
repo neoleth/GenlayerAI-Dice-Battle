@@ -13,7 +13,8 @@ const BRADBURY_EXPLORER = import.meta.env.VITE_EXPLORER || "https://explorer-bra
 const BRADBURY_NETWORK_PARAMS = {
   chainId: `0x${BRADBURY_CHAIN_ID.toString(16)}`,
   chainName: "GenLayer Testnet Bradbury",
-  rpcUrls: [BRADBURY_RPC],
+  // Route MetaMask traffic through our backend proxy to avoid Cloudflare blocks on users' IP addresses! (Fixes "The page c... is not valid JSON" from MetaMask)
+  rpcUrls: [typeof window !== "undefined" ? `${window.location.origin}/api/rpc` : BRADBURY_RPC],
   nativeCurrency: { name: "GEN Token", symbol: "GEN", decimals: 18 },
   blockExplorerUrls: [BRADBURY_EXPLORER],
 };
@@ -147,21 +148,23 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const switchNetwork = async () => {
     if (!window.ethereum) return;
     try {
+      // First, try adding the network. Why? Because the user's Metamask might have the 
+      // network added with rpc-bradbury.genlayer.com, which is getting blocked by Cloudflare!
+      // Calling wallet_addEthereumChain with an existing chainId prompts the user to UPDATE the RPC URL 
+      // to our local proxy, bypassing Cloudflare.
       await window.ethereum.request({
-        method: "wallet_switchEthereumChain",
-        params: [{ chainId: BRADBURY_NETWORK_PARAMS.chainId }],
+        method: "wallet_addEthereumChain",
+        params: [BRADBURY_NETWORK_PARAMS],
       });
-    } catch (switchError: any) {
-      if (switchError.code === 4902) {
-        try {
-          await window.ethereum.request({
-            method: "wallet_addEthereumChain",
-            params: [BRADBURY_NETWORK_PARAMS],
-          });
-        } catch (addError) {
-          toast.error("Failed to add GenLayer Bradbury network.");
-        }
-      } else {
+    } catch (err: any) {
+      if (err.code === 4001) return; // User rejected request
+      // If add fails (e.g. they already have it exactly as configured), we switch
+      try {
+        await window.ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: BRADBURY_NETWORK_PARAMS.chainId }],
+        });
+      } catch (switchError: any) {
         toast.error("Failed to switch network.");
       }
     }
