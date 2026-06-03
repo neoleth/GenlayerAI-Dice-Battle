@@ -218,7 +218,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const wagerWei = parseEther(wager.toString());
       const txHashStr = await client.deployContract({
         code,
-        args: [walletAddress, wagerWei],
+        args: [],
       });
       setTxHash(txHashStr);
       setTxStatus("confirming");
@@ -231,11 +231,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const contractAddr = (receipt as any).contractAddress || (receipt as any).contract_address;
       if (!contractAddr) throw new Error("Failed to get contract address from receipt");
 
-      toast.info("Funding the battle...");
+      toast.info("Initializing the battle...");
       const fundTxHash = await client.writeContract({
         address: contractAddr as `0x${string}`,
-        functionName: "fund_creator_wager",
-        args: [],
+        functionName: "initialize_battle",
+        args: [walletAddress, wagerWei],
         value: wagerWei,
       });
       setTxHash(fundTxHash);
