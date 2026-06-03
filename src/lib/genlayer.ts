@@ -31,11 +31,13 @@ import { createClient, chains } from "genlayer-js";
  * server-side (no CORS/Cloudflare blocking).
  */
 
+const BRADBURY_RPC = import.meta.env.VITE_GENLAYER_RPC || "https://rpc.testnet-chain.genlayer.com";
+
 // Make a deep copy to completely prevent genlayer-js from mutating the original objects
 const BRADBURY_CHAIN = JSON.parse(JSON.stringify(chains.testnetBradbury));
 BRADBURY_CHAIN.rpcUrls = {
-  default: { http: ["/api/rpc"] },
-  public:  { http: ["/api/rpc"] },
+  default: { http: [BRADBURY_RPC] },
+  public:  { http: [BRADBURY_RPC] },
 };
 
 export const getClient = (walletAddress?: string | null) => {
@@ -44,7 +46,7 @@ export const getClient = (walletAddress?: string | null) => {
   return createClient({
     chain: BRADBURY_CHAIN,
     provider: window.ethereum,
-    endpoint: "/api/rpc",
+    endpoint: BRADBURY_RPC,
     ...(walletAddress ? { account: walletAddress as `0x${string}` } : {}),
   });
 };

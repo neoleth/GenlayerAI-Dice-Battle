@@ -56,7 +56,7 @@ Requirements:
     res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.header("Access-Control-Allow-Headers", "Content-Type");
 
-    const targetRpc = process.env.VITE_GENLAYER_RPC || "https://rpc-bradbury.genlayer.com";
+    const targetRpc = process.env.VITE_GENLAYER_RPC || "https://rpc.testnet-chain.genlayer.com";
     try {
       const response = await fetch(targetRpc, {
         method: "POST",
@@ -87,7 +87,7 @@ Requirements:
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    const rpc = process.env.VITE_GENLAYER_RPC || "https://rpc-bradbury.genlayer.com";
+    const rpc = process.env.VITE_GENLAYER_RPC || "https://rpc.testnet-chain.genlayer.com";
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`RPC proxy → ${rpc}`);
   });
