@@ -40,7 +40,6 @@ class DiceBattle(gl.Contract):
     wager: u256           # wager amount in GEN (informational, stored for UI)
     status: str           # "OPEN" | "IN_PROGRESS" | "RESOLVED"
 
-    @gl.public.write.payable
     def __init__(self, player1: str, wager: u256) -> None:
         self.player1 = player1
         self.player2 = ""
@@ -52,6 +51,11 @@ class DiceBattle(gl.Contract):
 
     # --- Write Methods ---
 
+    @gl.public.write.payable
+    def fund_creator_wager(self) -> None:
+        assert gl.message.value == self.wager, "Must send exact wager amount"
+        # We assume player1 is calling this, just verifying value
+        
     @gl.public.write.payable
     def join_battle(self, player2: str) -> None:
         """Player 2 joins the open battle."""

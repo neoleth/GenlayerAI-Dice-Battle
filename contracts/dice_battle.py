@@ -22,7 +22,6 @@ class DiceBattle(gl.Contract):
     wager: u256
     status: str
 
-    @gl.public.write.payable
     def __init__(self, player1: str, wager: u256):
         self.player1 = player1
         self.player2 = ""
@@ -31,6 +30,10 @@ class DiceBattle(gl.Contract):
         self.dice2 = u256(0)
         self.wager = wager
         self.status = "OPEN"
+
+    @gl.public.write.payable
+    def fund_creator_wager(self) -> None:
+        assert gl.message.value == self.wager, "Must send exact wager amount"
 
     @gl.public.write.payable
     def join_battle(self, player2: str) -> None:
