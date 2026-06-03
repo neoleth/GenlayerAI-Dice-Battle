@@ -79,7 +79,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         const client = getClient(walletAddress);
         if (client) {
-          const expectedChainId = Number(import.meta.env.VITE_CHAIN_ID || 61999);
+          const expectedChainId = Number(import.meta.env.VITE_CHAIN_ID || 4221);
           const provider = new BrowserProvider(window.ethereum);
           const network = await provider.getNetwork();
           const currentChainId = Number(network.chainId);
@@ -103,7 +103,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const switchNetwork = async () => {
     if (!window.ethereum) return;
-    const targetChainId = `0x${Number(import.meta.env.VITE_CHAIN_ID || 61999).toString(16)}`;
+    const targetChainId = `0x${Number(import.meta.env.VITE_CHAIN_ID || 4221).toString(16)}`;
     try {
       await window.ethereum.request({
         method: "wallet_switchEthereumChain",

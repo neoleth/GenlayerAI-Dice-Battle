@@ -6,7 +6,7 @@ const getRpcUrl = () =>
   import.meta.env.VITE_GENLAYER_RPC || "https://zksync-os-testnet-genlayer.zksync.dev";
 
 const getChainId = () =>
-  Number(import.meta.env.VITE_CHAIN_ID || 61999);
+  Number(import.meta.env.VITE_CHAIN_ID || 4221);
 
 // Build a chain that matches the testnet structure
 // (consensusMainContract is required by _sendTransaction)
@@ -16,7 +16,13 @@ const buildChain = (): any => {
 
   // Prefer the official chain objects so consensusMainContract is correct
   const officialChain = Object.values(chains).find((c: any) => c.id === id);
-  if (officialChain) return officialChain as any;
+  if (officialChain) {
+    if (officialChain.id === 4221 && officialChain.name.includes("Asimov")) {
+       return chains.testnetAsimov as any;
+    }
+    return officialChain as any;
+  }
+
 
   // Fallback custom chain — consensusMainContract must be set for writes to work
   const customChain: any = {
