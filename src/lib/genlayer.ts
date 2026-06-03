@@ -1,46 +1,49 @@
 import { createClient, chains } from "genlayer-js";
 
-// ── GenLayer Testnet Bradbury ─────────────────────────────────────────────
-// Official config: https://docs.genlayer.com/developers/networks
-// Chain ID: 4221
-// GenLayer RPC: https://rpc-bradbury.genlayer.com
-// Explorer:     https://explorer-bradbury.genlayer.com
-// Note: The /api/rpc proxy on the Express server forwards to VITE_GENLAYER_RPC
-//       to avoid browser CORS restrictions when running in AI Studio.
+/**
+ * GenLayer Testnet Bradbury
+ * Chain ID:  4221
+ * RPC:       https://rpc-bradbury.genlayer.com  (proxied via /api/rpc)
+ * Explorer:  https://explorer-bradbury.genlayer.com
+ *
+ * ROOT CAUSE FIX for "Unexpected token 'T', The page c... is not valid JSON":
+ *
+ * The error means viem received an HTML page instead of JSON from the RPC.
+ * This happened because:
+ *
+ *   1. buildChain() was searching chains by ID (4221) and found `testnetAsimov`
+ *      first (both Asimov and Bradbury share chain ID 4221 in genlayer-js).
+ *
+ *   2. `testnetAsimov` has its own hardcoded RPC URL (`rpc-asimov.genlayer.com`)
+ *      INSIDE the chain object. genlayer-js uses this URL for the publicClient
+ *      (read calls), bypassing the `endpoint` proxy.
+ *
+ *   3. At the same time, `endpoint: "/api/rpc"` was proxying write calls to
+ *      `rpc-bradbury.genlayer.com` — a DIFFERENT network.
+ *
+ *   4. The Bradbury RPC is behind Cloudflare and blocks direct browser requests
+ *      with a 403 HTML page ("The page cannot be displayed"), causing viem's
+ *      JSON.parse to fail with the "Unexpected token T" error.
+ *
+ * FIX: Use `chains.testnetBradbury` explicitly instead of searching by ID.
+ * Then override its rpcUrls to point to "/api/rpc" so ALL calls (both read
+ * and write) go through the Express proxy, which forwards to the real RPC
+ * server-side (no CORS/Cloudflare blocking).
+ */
 
-const CHAIN_ID  = Number(import.meta.env.VITE_CHAIN_ID  || 4221);
-const EXPLORER  = import.meta.env.VITE_EXPLORER || "https://explorer-bradbury.genlayer.com";
-
-const buildChain = (): any => {
-  // Try official genlayer-js chain objects first (they have consensusMainContract built in)
-  const official = Object.values(chains).find((c: any) => c.id === CHAIN_ID);
-  if (official) return official;
-
-  // Custom fallback
-  return {
-    id: CHAIN_ID,
-    name: "GenLayer Testnet Bradbury",
-    nativeCurrency: { name: "GEN Token", symbol: "GEN", decimals: 18 },
-    rpcUrls: { default: { http: ["/api/rpc"] } },
-    blockExplorers: { default: { name: "GenLayer Explorer", url: EXPLORER } },
-  };
+const BRADBURY_CHAIN = {
+  ...chains.testnetBradbury,
+  rpcUrls: {
+    default: { http: ["/api/rpc"] },
+    public:  { http: ["/api/rpc"] },
+  },
 };
 
-/**
- * Returns a GenLayer client wired to window.ethereum (MetaMask).
- *
- * Always pass `walletAddress` for write ops — genlayer-js needs `account`
- * to be set or it throws "No account set". A plain address string routes
- * signing through window.ethereum automatically (no private key in frontend).
- *
- * `endpoint: "/api/rpc"` routes all JSON-RPC through the Express proxy
- * so browser CORS restrictions are bypassed.
- */
 export const getClient = (walletAddress?: string | null) => {
   if (typeof window === "undefined" || !window.ethereum) return null;
 
   return createClient({
-    chain: buildChain(),
+    chain: BRADBURY_CHAIN,
     provider: window.ethereum,
     endpoint: "/api/rpc",
     ...(walletAddress ? { account: walletAddress as `0x${string}` } : {}),
