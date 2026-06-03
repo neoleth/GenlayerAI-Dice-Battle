@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { Battle, GameState } from "../types";
 import { getClient } from "../lib/genlayer";
 import { getDiceBattleCode } from "../lib/contract";
-import { BrowserProvider, parseEther } from "ethers";
+import { BrowserProvider, parseEther, formatEther } from "ethers";
 import { toast } from "react-toastify";
 
 interface GameContextType {
@@ -88,8 +88,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setNetworkName(network.name === "unknown" ? "GenLayer Testnet" : network.name);
           
           if (currentChainId === expectedChainId) {
-             const bal = await client.getBalance({ address: walletAddress as `0x${string}` });
-             setGenBalance((Number(bal) / 1e18).toFixed(2));
+             const bal = await provider.getBalance(walletAddress);
+             const formattedBal = formatEther(bal);
+             setGenBalance(parseFloat(formattedBal).toFixed(2));
           } else {
              setGenBalance("0.00");
           }
