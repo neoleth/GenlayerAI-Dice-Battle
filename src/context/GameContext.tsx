@@ -13,8 +13,7 @@ const BRADBURY_EXPLORER = import.meta.env.VITE_EXPLORER || "https://explorer-bra
 const BRADBURY_NETWORK_PARAMS = {
   chainId: `0x${BRADBURY_CHAIN_ID.toString(16)}`,
   chainName: "GenLayer Testnet Bradbury",
-  // Route MetaMask traffic through our backend proxy to avoid Cloudflare blocks on users' IP addresses! (Fixes "The page c... is not valid JSON" from MetaMask)
-  rpcUrls: [typeof window !== "undefined" ? `${window.location.origin}/api/rpc` : BRADBURY_RPC],
+  rpcUrls: [BRADBURY_RPC],
   nativeCurrency: { name: "GEN Token", symbol: "GEN", decimals: 18 },
   blockExplorerUrls: [BRADBURY_EXPLORER],
 };

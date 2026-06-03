@@ -31,12 +31,11 @@ import { createClient, chains } from "genlayer-js";
  * server-side (no CORS/Cloudflare blocking).
  */
 
-const BRADBURY_CHAIN = {
-  ...chains.testnetBradbury,
-  rpcUrls: {
-    default: { http: ["/api/rpc"] },
-    public:  { http: ["/api/rpc"] },
-  },
+// Make a deep copy to completely prevent genlayer-js from mutating the original objects
+const BRADBURY_CHAIN = JSON.parse(JSON.stringify(chains.testnetBradbury));
+BRADBURY_CHAIN.rpcUrls = {
+  default: { http: ["/api/rpc"] },
+  public:  { http: ["/api/rpc"] },
 };
 
 export const getClient = (walletAddress?: string | null) => {
