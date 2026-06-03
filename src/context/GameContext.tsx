@@ -223,7 +223,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setTxHash(txHashStr);
       setTxStatus("confirming");
 
-      const receipt = await client.waitForTransactionReceipt({ hash: txHashStr as any });
+      const receipt = await client.waitForTransactionReceipt({ 
+        hash: txHashStr as any,
+        retries: 60,
+        interval: 3000
+      } as any);
       const contractAddr = (receipt as any).contractAddress || (receipt as any).contract_address;
       if (!contractAddr) throw new Error("Failed to get contract address from receipt");
 
@@ -235,7 +239,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         value: wagerWei,
       });
       setTxHash(fundTxHash);
-      await client.waitForTransactionReceipt({ hash: fundTxHash });
+      await client.waitForTransactionReceipt({ 
+        hash: fundTxHash,
+        retries: 60,
+        interval: 3000
+      } as any);
 
       const newBattle: Battle = {
         id: contractAddr,
@@ -286,7 +294,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       setTxHash(txHashStr);
       setTxStatus("confirming");
-      await client.waitForTransactionReceipt({ hash: txHashStr });
+      await client.waitForTransactionReceipt({ 
+        hash: txHashStr,
+        retries: 60,
+        interval: 3000
+      } as any);
       setTxStatus("success");
       toast.success("Transaction confirmed!");
 
@@ -335,7 +347,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       setTxHash(txHashStr);
       setTxStatus("confirming");
-      await client.waitForTransactionReceipt({ hash: txHashStr });
+      await client.waitForTransactionReceipt({ 
+        hash: txHashStr,
+        retries: 60,
+        interval: 3000
+      } as any);
       setTxStatus("success");
       toast.success("Winner determined on-chain!");
 
