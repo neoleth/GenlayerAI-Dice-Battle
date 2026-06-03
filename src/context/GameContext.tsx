@@ -215,10 +215,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const code = await getDiceBattleCode();
 
       toast.info("Deploying new battle contract...");
+      const wagerWei = parseEther(wager.toString());
       const txHashStr = await client.deployContract({
         code,
-        args: [walletAddress, BigInt(wager)],
-      });
+        args: [walletAddress, wagerWei],
+        value: wagerWei,
+      } as any);
       setTxHash(txHashStr);
       setTxStatus("confirming");
 

@@ -12,6 +12,13 @@ export const getDiceBattleCode = async () => {
 
 from genlayer import *
 
+@gl.evm.contract_interface
+class _Recipient:
+    class View:
+        pass
+    class Write:
+        pass
+
 class DiceBattle(gl.Contract):
     """
     AI Dice Battle — Intelligent Contract on GenLayer.
@@ -33,6 +40,7 @@ class DiceBattle(gl.Contract):
     wager: u256           # wager amount in GEN (informational, stored for UI)
     status: str           # "OPEN" | "IN_PROGRESS" | "RESOLVED"
 
+    @gl.public.write.payable
     def __init__(self, player1: str, wager: u256) -> None:
         self.player1 = player1
         self.player2 = ""
@@ -44,7 +52,7 @@ class DiceBattle(gl.Contract):
 
     # --- Write Methods ---
 
-    @gl.public.write
+    @gl.public.write.payable
     def join_battle(self, player2: str) -> None:
         """Player 2 joins the open battle."""
         # BUG FIX: original had no guards — anyone could overwrite player2 anytime
@@ -84,16 +92,22 @@ class DiceBattle(gl.Contract):
 
         if verdict == "player1":
             self.winner = self.player1
+            _Recipient(Address(self.player1)).emit_transfer(value=self.wager * u256(2))
         elif verdict == "player2":
             self.winner = self.player2
+            _Recipient(Address(self.player2)).emit_transfer(value=self.wager * u256(2))
         else:
             # Fallback to deterministic logic if AI returns unexpected output
             if dice1 > dice2:
                 self.winner = self.player1
+                _Recipient(Address(self.player1)).emit_transfer(value=self.wager * u256(2))
             elif dice2 > dice1:
                 self.winner = self.player2
+                _Recipient(Address(self.player2)).emit_transfer(value=self.wager * u256(2))
             else:
                 self.winner = "DRAW"
+                _Recipient(Address(self.player1)).emit_transfer(value=self.wager)
+                _Recipient(Address(self.player2)).emit_transfer(value=self.wager)
 
         self.status = "RESOLVED"
 
