@@ -47,7 +47,7 @@ export const getClient = (walletAddress?: string | null) => {
   return createClient({
     chain: buildChain(),
     provider: window.ethereum,
-    endpoint: "/api/rpc", // Use local proxy to bypass CORS/iframe issues
+    endpoint: getRpcUrl(), // Use direct RPC URL since it supports CORS
     // Pass the connected address so validateAccount() doesn't throw.
     // genlayer-js treats a plain string address as "use provider for signing".
     ...(walletAddress ? { account: walletAddress as `0x${string}` } : {}),
