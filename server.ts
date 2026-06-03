@@ -9,59 +9,57 @@ async function startServer() {
 
   app.use(express.json());
 
-  // AI Narrative Endpoint
+  // ── AI Battle Narration ──────────────────────────────────────────────────
   app.post("/api/generate_story", async (req, res) => {
     try {
       const { winner, loser, winnerRoll, loserRoll, wager } = req.body;
-      
       const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new Error("GEMINI_API_KEY environment variable is required");
-      }
-      
+      if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
+
       const ai = new GoogleGenAI({ apiKey });
-      
-      const prompt = `Write a fantasy style battle story. 
+      const prompt = `Write a fantasy style battle story.
 Players: ${winner} (Winner) vs ${loser} (Loser).
 Dice Rolls: ${winnerRoll} vs ${loserRoll}.
 Stake Amount: ${wager} GEN tokens.
 Requirements:
-1. Must mention both wallet player addresses (maybe shortened if needed, but refer to them).
-2. Must mention the exact dice values.
-3. Must mention the stake amount (${wager} GEN).
-4. Must explicitly mention who won.
-5. Maximum 4 sentences long.`;
-      
+1. Mention both players (you may shorten wallet addresses).
+2. Mention the exact dice values.
+3. Mention the stake amount (${wager} GEN).
+4. Mention who won.
+5. Maximum 4 sentences.`;
+
       const response = await ai.models.generateContent({
         model: "gemini-2.0-flash",
-        contents: prompt
+        contents: prompt,
       });
-      
       res.json({ story: response.text });
     } catch (error) {
-      console.error(error);
+      console.error("Story generation error:", error);
       res.status(500).json({ error: "Failed to generate story" });
     }
   });
 
-  const rpcUrl = process.env.VITE_GENLAYER_RPC || "https://zksync-os-testnet-genlayer.zksync.dev";
-  // GenLayer RPC Proxy to bypass browser CORS/iframe restrictions
+  // ── GenLayer Bradbury RPC Proxy ──────────────────────────────────────────
+  // Proxies all JSON-RPC calls to the real GenLayer Bradbury testnet.
+  // This bypasses CORS/iframe restrictions in browser/AI Studio environments.
+  // Target RPC comes from VITE_GENLAYER_RPC env var.
   app.post("/api/rpc", async (req, res) => {
+    const targetRpc = process.env.VITE_GENLAYER_RPC || "https://rpc-bradbury.genlayer.com";
     try {
-      const response = await fetch(rpcUrl, {
+      const response = await fetch(targetRpc, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(req.body)
+        body: JSON.stringify(req.body),
       });
       const data = await response.json();
       res.json(data);
     } catch (error) {
-      console.error("GenLayer Proxy Error:", error);
-      res.status(500).json({ error: "Failed to proxy RPC" });
+      console.error("GenLayer RPC proxy error:", error);
+      res.status(502).json({ error: "RPC proxy failed", target: targetRpc });
     }
   });
 
-  // Vite middleware for development
+  // ── Vite / Static ────────────────────────────────────────────────────────
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -69,15 +67,17 @@ Requirements:
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get('*all', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+    app.get("*all", (_req, res) => {
+      res.sendFile(path.join(distPath, "index.html"));
     });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
+    const rpc = process.env.VITE_GENLAYER_RPC || "https://rpc-bradbury.genlayer.com";
     console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`RPC proxy → ${rpc}`);
   });
 }
 

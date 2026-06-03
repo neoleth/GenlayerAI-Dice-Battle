@@ -1,51 +1,40 @@
 import { createClient, chains } from "genlayer-js";
 
-// Use the official GenLayer testnet chain config if matching,
-// otherwise build a custom chain from env vars.
-const getRpcUrl = () =>
-  import.meta.env.VITE_GENLAYER_RPC || "https://zksync-os-testnet-genlayer.zksync.dev";
+// ── GenLayer Testnet Bradbury ─────────────────────────────────────────────
+// Official config: https://docs.genlayer.com/developers/networks
+// Chain ID: 4221
+// GenLayer RPC: https://rpc-bradbury.genlayer.com
+// Explorer:     https://explorer-bradbury.genlayer.com
+// Note: The /api/rpc proxy on the Express server forwards to VITE_GENLAYER_RPC
+//       to avoid browser CORS restrictions when running in AI Studio.
 
-const getChainId = () =>
-  Number(import.meta.env.VITE_CHAIN_ID || 4221);
+const CHAIN_ID  = Number(import.meta.env.VITE_CHAIN_ID  || 4221);
+const EXPLORER  = import.meta.env.VITE_EXPLORER || "https://explorer-bradbury.genlayer.com";
 
-// Build a chain that matches the testnet structure
-// (consensusMainContract is required by _sendTransaction)
 const buildChain = (): any => {
-  const rpc = getRpcUrl();
-  const id = getChainId();
+  // Try official genlayer-js chain objects first (they have consensusMainContract built in)
+  const official = Object.values(chains).find((c: any) => c.id === CHAIN_ID);
+  if (official) return official;
 
-  // Prefer the official chain objects so consensusMainContract is correct
-  const officialChain = Object.values(chains).find((c: any) => c.id === id);
-  if (officialChain) {
-    if (officialChain.id === 4221 && officialChain.name.includes("Asimov")) {
-       return chains.testnetAsimov as any;
-    }
-    return officialChain as any;
-  }
-
-
-  // Fallback custom chain — consensusMainContract must be set for writes to work
-  const customChain: any = {
-    id,
-    name: "GenLayer Custom",
-    nativeCurrency: { name: "GEN", symbol: "GEN", decimals: 18 },
-    rpcUrls: { default: { http: [rpc] } },
-    // NOTE: If using a custom RPC you must also provide consensusMainContract
-    // consensusMainContract: { address: "0x..." },
+  // Custom fallback
+  return {
+    id: CHAIN_ID,
+    name: "GenLayer Testnet Bradbury",
+    nativeCurrency: { name: "GEN Token", symbol: "GEN", decimals: 18 },
+    rpcUrls: { default: { http: ["/api/rpc"] } },
+    blockExplorers: { default: { name: "GenLayer Explorer", url: EXPLORER } },
   };
-
-  return customChain;
 };
 
 /**
- * Returns a GenLayer client wired to window.ethereum.
+ * Returns a GenLayer client wired to window.ethereum (MetaMask).
  *
- * KEY FIX: genlayer-js requires `account` to be set on the client
- * (or passed per-call) for any write operation. When using an
- * EIP-1193 provider (MetaMask), pass the connected wallet address
- * as `account`. The library detects that it is a plain address string
- * (not a local private-key account) and routes signing through the
- * provider automatically.
+ * Always pass `walletAddress` for write ops — genlayer-js needs `account`
+ * to be set or it throws "No account set". A plain address string routes
+ * signing through window.ethereum automatically (no private key in frontend).
+ *
+ * `endpoint: "/api/rpc"` routes all JSON-RPC through the Express proxy
+ * so browser CORS restrictions are bypassed.
  */
 export const getClient = (walletAddress?: string | null) => {
   if (typeof window === "undefined" || !window.ethereum) return null;
@@ -53,9 +42,7 @@ export const getClient = (walletAddress?: string | null) => {
   return createClient({
     chain: buildChain(),
     provider: window.ethereum,
-    endpoint: getRpcUrl(), // Use direct RPC URL since it supports CORS
-    // Pass the connected address so validateAccount() doesn't throw.
-    // genlayer-js treats a plain string address as "use provider for signing".
+    endpoint: "/api/rpc",
     ...(walletAddress ? { account: walletAddress as `0x${string}` } : {}),
   });
 };
