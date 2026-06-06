@@ -27,7 +27,7 @@ interface GameContextType {
   connectWallet: () => Promise<void>;
   disconnectWallet: () => void;
   gameState: GameState;
-  createBattle: (wager: number) => Promise<string>;
+  createBattle: (wager: string) => Promise<string>;
   joinBattle: (battleId: string) => Promise<void>;
   resolveBattle: (battleId: string) => Promise<void>;
   getWinner: (battleId: string) => Promise<string | null>;
@@ -45,7 +45,71 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isCorrectNetwork, setIsCorrectNetwork] = useState<boolean>(true);
   const [txStatus, setTxStatus] = useState<"idle" | "pending" | "confirming" | "success" | "error">("idle");
   const [txHash, setTxHash] = useState<string | null>(null);
-  const [gameState, setGameState] = useState<GameState>({ battles: {}, leaderboard: {} });
+  const [gameState, setGameState] = useState<GameState>(() => {
+    try {
+      const saved = localStorage.getItem("diceBattleGameState");
+      return saved ? JSON.parse(saved) : { battles: {}, leaderboard: {} };
+    } catch {
+      return { battles: {}, leaderboard: {} };
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("diceBattleGameState", JSON.stringify(gameState));
+    } catch (e) {
+      console.error("Failed to persist game state", e);
+    }
+  }, [gameState]);
+
+  // Polling for battle updates
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    const poll = async () => {
+      const activeBattles = Object.entries(gameState.battles).filter(
+        (entry): entry is [string, Battle] => {
+          const b = entry[1] as Battle;
+          return b.status === "OPEN" || b.status === "IN_PROGRESS";
+        }
+      );
+      if (activeBattles.length === 0) return;
+      if (!walletAddress) return;
+      const client = getClient(walletAddress);
+      if (!client) return;
+
+      let changed = false;
+      const newBattles = { ...gameState.battles };
+
+      for (const [id, b] of activeBattles) {
+        try {
+          const state = await client.readContract({
+            address: id as `0x${string}`,
+            functionName: "get_state",
+            args: [],
+          }) as any;
+
+          if (state && (state.status !== b.status || String(state.player2) !== String(b.opponent || ""))) {
+            changed = true;
+            newBattles[id] = {
+              ...b,
+              status: state.status as any,
+              opponent: state.player2 ? String(state.player2) : undefined,
+            };
+          }
+        } catch (e) {
+          console.debug("Failed polling for battle", id);
+        }
+      }
+
+      if (changed) {
+        setGameState(prev => ({ ...prev, battles: newBattles }));
+      }
+    };
+
+    interval = setInterval(poll, 10000); // 10s poll 
+    return () => clearInterval(interval);
+  }, [gameState.battles, walletAddress]);
+
   const [isLoading, setIsLoading] = useState(false);
 
   // ── Auto-connect on load ──────────────────────────────────────────────────
@@ -199,7 +263,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // ── Create Battle ─────────────────────────────────────────────────────────
-  const createBattle = async (wager: number): Promise<string> => {
+  const createBattle = async (wager: string): Promise<string> => {
     let currentAddress = walletAddress;
     if (!currentAddress) {
       await connectWallet();
@@ -245,18 +309,23 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!contractAddr) throw new Error("Failed to get contract address from receipt");
 
       toast.info("Initializing the battle...");
-      const fundTxHash = await client.writeContract({
-        address: contractAddr as `0x${string}`,
-        functionName: "initialize_battle",
-        args: [walletAddress, wagerWei],
-        value: wagerWei,
-      });
-      setTxHash(fundTxHash);
-      await client.waitForTransactionReceipt({ 
-        hash: fundTxHash,
-        retries: 60,
-        interval: 3000
-      } as any);
+      try {
+        const fundTxHash = await client.writeContract({
+          address: contractAddr as `0x${string}`,
+          functionName: "initialize_battle",
+          args: [wagerWei],
+          value: wagerWei,
+        });
+        setTxHash(fundTxHash);
+        await client.waitForTransactionReceipt({ 
+          hash: fundTxHash,
+          retries: 60,
+          interval: 3000
+        } as any);
+      } catch (initError: any) {
+        toast.error(`Contract deployed at ${contractAddr} but initialization failed. The contract is stuck in INITIALIZING state.`);
+        throw initError;
+      }
 
       const newBattle: Battle = {
         id: contractAddr,
@@ -317,7 +386,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const txHashStr = await client.writeContract({
         address: battleId as `0x${string}`,
         functionName: "join_battle",
-        args: [walletAddress],
+        args: [],
         value: wagerValue,
       });
       setTxHash(txHashStr);
@@ -333,7 +402,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setGameState(prev => {
         const b = prev.battles[battleId];
         if (!b) return prev;
-        return { ...prev, battles: { ...prev.battles, [battleId]: { ...b, opponent: walletAddress } } };
+        return { ...prev, battles: { ...prev.battles, [battleId]: { ...b, opponent: currentAddress, status: "IN_PROGRESS" } } };
       });
       refreshBalance(walletAddress);
     } catch (e: any) {
@@ -372,13 +441,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const client = getClient(currentAddress);
       if (!client) throw new Error("GenLayer client not found");
 
-      let creatorRoll = Math.floor(Math.random() * 6) + 1;
-      let opponentRoll = Math.floor(Math.random() * 6) + 1;
-      while (creatorRoll === opponentRoll) {
-        creatorRoll = Math.floor(Math.random() * 6) + 1;
-        opponentRoll = Math.floor(Math.random() * 6) + 1;
-      }
-
       const battle = gameState.battles[battleId];
       if (!battle) throw new Error("Battle not found");
 
@@ -386,7 +448,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const txHashStr = await client.writeContract({
         address: battleId as `0x${string}`,
         functionName: "resolve_battle",
-        args: [BigInt(creatorRoll), BigInt(opponentRoll)],
+        args: [],
         value: 0n,
       });
       setTxHash(txHashStr);
@@ -399,8 +461,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setTxStatus("success");
       toast.success("Winner determined on-chain!");
 
-      let winnerName = await getWinner(battleId);
-      if (!winnerName) winnerName = battle.creator;
+      const result = await client.readContract({
+        address: battleId as `0x${string}`,
+        functionName: "get_battle_result",
+        args: [],
+      }) as { dice1: bigint | number; dice2: bigint | number; winner: string; status: string };
+
+      const creatorRoll = Number(result.dice1);
+      const opponentRoll = Number(result.dice2);
+      let winnerName = result.winner || battle.creator;
 
       const loserName = winnerName === battle.creator ? battle.opponent : battle.creator;
       const winnerRoll = creatorRoll > opponentRoll ? creatorRoll : opponentRoll;
@@ -431,7 +500,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         newLeaderboard[battle.creator].totalBattles += 1;
         if (battle.opponent) newLeaderboard[battle.opponent].totalBattles += 1;
         if (winnerName && winnerName !== "DRAW") {
-          const reward = battle.wager * 2;
+          const reward = parseFloat(battle.wager) * 2;
           newLeaderboard[winnerName].wins += 1;
           (newLeaderboard[winnerName] as any).totalGenWon += reward;
           if (reward > (newLeaderboard[winnerName] as any).largestVictory) {

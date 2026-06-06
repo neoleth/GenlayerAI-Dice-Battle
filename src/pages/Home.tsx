@@ -7,7 +7,7 @@ import { Dice } from "../components/Dice";
 
 export const Home = () => {
   const { walletAddress, createBattle, isLoading } = useGame();
-  const [wager, setWager] = useState(10);
+  const [wager, setWager] = useState("10");
   const navigate = useNavigate();
 
   const handleCreate = async () => {
@@ -16,7 +16,6 @@ export const Home = () => {
       navigate(`/battle/${id}`);
     } catch (e) {
       console.error(e);
-      alert("Failed to create battle");
     }
   };
 
@@ -69,8 +68,9 @@ export const Home = () => {
                     <input
                       type="number"
                       value={wager}
-                      onChange={(e) => setWager(Number(e.target.value))}
+                      onChange={(e) => setWager(e.target.value)}
                       min="1"
+                      step="0.01"
                       className="w-full bg-[#0d0d11] border border-[#2a2a2e] rounded px-4 py-3 text-white focus:outline-none focus:border-[#d4af37] focus:shadow-[0_0_10px_rgba(212,175,55,0.1)] transition-all font-mono"
                     />
                     <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#d4af37] font-bold text-xs uppercase tracking-widest">

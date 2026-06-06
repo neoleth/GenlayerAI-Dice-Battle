@@ -1,9 +1,9 @@
-export type BattleStatus = "OPEN" | "RESOLVED";
+export type BattleStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED";
 
 export interface Battle {
   id: string;
   creator: string;
-  wager: number;
+  wager: string;
   status: BattleStatus;
   opponent?: string;
   creatorRoll?: number;

@@ -41,9 +41,20 @@ export const Battle = () => {
       if (battle?.status === "OPEN" && !battle.opponent) {
         await joinBattle(id);
       }
+      if (battle?.status === "IN_PROGRESS" || battle?.opponent) {
+        await resolveBattle(id);
+      }
+    } catch (e: any) {
+      console.error("Battle action failed:", e);
+    }
+  };
+
+  const handleResolve = async () => {
+    if (!id) return;
+    try {
       await resolveBattle(id);
     } catch (e: any) {
-      console.error(e);
+      console.error("Resolution failed:", e);
     }
   };
 
@@ -101,19 +112,28 @@ export const Battle = () => {
               size="lg"
             />
 
-            {battle.status === "OPEN" ? (
+            {battle.status === "OPEN" || battle.status === "IN_PROGRESS" ? (
               <div className="w-32 h-32 rounded-2xl border-2 border-dashed border-[#2a2a2e] flex flex-col items-center justify-center bg-[#16161c]">
-                 {!isCreator && walletAddress && (
+                 {!isCreator && walletAddress && battle.status === "OPEN" && (
                    <button 
                      onClick={handleJoin}
                      disabled={isLoading}
                      className="bg-[#2a2a2e] hover:bg-[#8b0000] hover:text-white text-[#a0a0a5] text-xs font-bold py-2 px-4 rounded uppercase tracking-widest transition-all"
                    >
-                     {isLoading ? "Rolling..." : "Join"}
+                     {isLoading ? "Joining..." : "Join"}
                    </button>
                  )}
-                 {!walletAddress && <span className="text-[10px] uppercase text-[#6e6e76] tracking-widest text-center px-4">Connect to join</span>}
-                 {isCreator && <span className="text-[10px] uppercase text-[#6e6e76] tracking-widest text-center px-4">Awaiting opponent</span>}
+                 {!walletAddress && battle.status === "OPEN" && <span className="text-[10px] uppercase text-[#6e6e76] tracking-widest text-center px-4">Connect to join</span>}
+                 {isCreator && battle.status === "OPEN" && <span className="text-[10px] uppercase text-[#6e6e76] tracking-widest text-center px-4">Awaiting opponent</span>}
+                 {battle.status === "IN_PROGRESS" && (
+                   <button
+                     onClick={handleResolve}
+                     disabled={isLoading}
+                     className="bg-[#d4af37] text-black text-xs font-bold py-2 px-4 rounded uppercase tracking-widest hover:bg-[#f0c842] transition-all"
+                   >
+                     {isLoading ? "Rolling..." : "Roll Dice"}
+                   </button>
+                 )}
               </div>
             ) : (
               <Dice 
