@@ -144,27 +144,25 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [walletAddress]);
 
   // ── Switch / Add network ──────────────────────────────────────────────────
-  const switchNetwork = async () => {
-    if (!window.ethereum) return;
+  const switchNetwork = async (): Promise<boolean> => {
+    if (!window.ethereum) return false;
     try {
-      // First, try adding the network. Why? Because the user's Metamask might have the 
-      // network added with rpc-bradbury.genlayer.com, which is getting blocked by Cloudflare!
-      // Calling wallet_addEthereumChain with an existing chainId prompts the user to UPDATE the RPC URL 
-      // to our local proxy, bypassing Cloudflare.
       await window.ethereum.request({
         method: "wallet_addEthereumChain",
         params: [BRADBURY_NETWORK_PARAMS],
       });
+      return true;
     } catch (err: any) {
-      if (err.code === 4001) return; // User rejected request
-      // If add fails (e.g. they already have it exactly as configured), we switch
+      if (err.code === 4001) return false;
       try {
         await window.ethereum.request({
           method: "wallet_switchEthereumChain",
           params: [{ chainId: BRADBURY_NETWORK_PARAMS.chainId }],
         });
+        return true;
       } catch (switchError: any) {
         toast.error("Failed to switch network.");
+        return false;
       }
     }
   };
@@ -202,15 +200,30 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // ── Create Battle ─────────────────────────────────────────────────────────
   const createBattle = async (wager: number): Promise<string> => {
-    if (!walletAddress) {
+    let currentAddress = walletAddress;
+    if (!currentAddress) {
       await connectWallet();
-      if (!walletAddress) throw new Error("Wallet not connected");
+      // After connectWallet, state might not be updated synchronously in this closure. 
+      // Fetch directly from ethereum provider to be safe:
+      if (window.ethereum) {
+        const accounts = await window.ethereum.request({ method: "eth_accounts" });
+        if (accounts && accounts.length > 0) currentAddress = accounts[0];
+      }
+      if (!currentAddress) throw new Error("Wallet not connected");
     }
+
+    let currentChainId = await window.ethereum?.request({ method: "eth_chainId" });
+    if (parseInt(currentChainId as string, 16) !== BRADBURY_CHAIN_ID) {
+      const switched = await switchNetwork();
+      if (!switched) throw new Error("Please switch to GenLayer Bradbury Testnet");
+      await new Promise(resolve => setTimeout(resolve, 500)); // allow provider to update
+    }
+
     setIsLoading(true);
     setTxStatus("pending");
     setTxHash(null);
     try {
-      const client = getClient(walletAddress);
+      const client = getClient(currentAddress);
       if (!client) throw new Error("GenLayer client not found");
       const code = await getDiceBattleCode();
 
@@ -271,13 +284,28 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // ── Join Battle ───────────────────────────────────────────────────────────
   const joinBattle = async (battleId: string) => {
-    if (!walletAddress) { await connectWallet(); }
-    if (!walletAddress) throw new Error("Wallet not connected");
+    let currentAddress = walletAddress;
+    if (!currentAddress) {
+      await connectWallet();
+      if (window.ethereum) {
+        const accounts = await window.ethereum.request({ method: "eth_accounts" });
+        if (accounts && accounts.length > 0) currentAddress = accounts[0];
+      }
+      if (!currentAddress) throw new Error("Wallet not connected");
+    }
+
+    let currentChainId = await window.ethereum?.request({ method: "eth_chainId" });
+    if (parseInt(currentChainId as string, 16) !== BRADBURY_CHAIN_ID) {
+      const switched = await switchNetwork();
+      if (!switched) throw new Error("Please switch to GenLayer Bradbury Testnet");
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
     setIsLoading(true);
     setTxStatus("pending");
     setTxHash(null);
     try {
-      const client = getClient(walletAddress);
+      const client = getClient(currentAddress);
       if (!client) throw new Error("GenLayer client not found");
 
       const battle = gameState.battles[battleId];
@@ -320,12 +348,28 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // ── Resolve Battle ────────────────────────────────────────────────────────
   const resolveBattle = async (battleId: string) => {
-    if (!walletAddress) throw new Error("Wallet not connected");
+    let currentAddress = walletAddress;
+    if (!currentAddress) {
+      await connectWallet();
+      if (window.ethereum) {
+        const accounts = await window.ethereum.request({ method: "eth_accounts" });
+        if (accounts && accounts.length > 0) currentAddress = accounts[0];
+      }
+      if (!currentAddress) throw new Error("Wallet not connected");
+    }
+
+    let currentChainId = await window.ethereum?.request({ method: "eth_chainId" });
+    if (parseInt(currentChainId as string, 16) !== BRADBURY_CHAIN_ID) {
+      const switched = await switchNetwork();
+      if (!switched) throw new Error("Please switch to GenLayer Bradbury Testnet");
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
     setIsLoading(true);
     setTxStatus("pending");
     setTxHash(null);
     try {
-      const client = getClient(walletAddress);
+      const client = getClient(currentAddress);
       if (!client) throw new Error("GenLayer client not found");
 
       let creatorRoll = Math.floor(Math.random() * 6) + 1;
