@@ -1,3 +1,6 @@
+import { config as loadEnv } from "dotenv";
+loadEnv(); // Loads .env into process.env so VITE_GENLAYER_RPC is available
+
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
@@ -63,6 +66,19 @@ Requirements:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(req.body),
       });
+
+      // Guard: if the upstream returned HTML (Cloudflare error page), surface it clearly
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error(`RPC upstream returned non-JSON (${response.status}):`, text.slice(0, 200));
+        return res.status(502).json({
+          error: "RPC upstream returned a non-JSON response",
+          status: response.status,
+          hint: "Check VITE_GENLAYER_RPC in your .env file and ensure the RPC endpoint is reachable from the server.",
+        });
+      }
+
       const data = await response.json();
       res.json(data);
     } catch (error) {

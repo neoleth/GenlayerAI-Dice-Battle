@@ -31,22 +31,38 @@ import { createClient, chains } from "genlayer-js";
  * server-side (no CORS/Cloudflare blocking).
  */
 
-const BRADBURY_RPC = typeof window !== 'undefined' ? `${window.location.origin}/api/rpc` : import.meta.env.VITE_GENLAYER_RPC || "https://rpc.testnet-chain.genlayer.com";
+const FALLBACK_RPC = import.meta.env.VITE_GENLAYER_RPC || "https://rpc.testnet-chain.genlayer.com";
 
-// Make a deep copy to completely prevent genlayer-js from mutating the original objects
-const BRADBURY_CHAIN = JSON.parse(JSON.stringify(chains.testnetBradbury));
-BRADBURY_CHAIN.rpcUrls = {
-  default: { http: [BRADBURY_RPC] },
-  public:  { http: [BRADBURY_RPC] },
-};
+function getRpcUrl(): string {
+  // Computed lazily at call-time, never at module load time.
+  // window.location.origin is safe here because this is only called
+  // after the browser has fully initialized.
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return `${window.location.origin}/api/rpc`;
+  }
+  return FALLBACK_RPC;
+}
+
+function buildChain() {
+  const rpcUrl = getRpcUrl();
+  // Deep copy to prevent genlayer-js from mutating the shared chain object
+  const chain = JSON.parse(JSON.stringify(chains.testnetBradbury));
+  chain.rpcUrls = {
+    default: { http: [rpcUrl] },
+    public:  { http: [rpcUrl] },
+  };
+  return { chain, rpcUrl };
+}
 
 export const getClient = (walletAddress?: string | null) => {
   if (typeof window === "undefined" || !window.ethereum) return null;
 
+  const { chain, rpcUrl } = buildChain();
+
   return createClient({
-    chain: BRADBURY_CHAIN,
+    chain,
     provider: window.ethereum,
-    endpoint: BRADBURY_RPC,
+    endpoint: rpcUrl,
     ...(walletAddress ? { account: walletAddress as `0x${string}` } : {}),
   });
 };

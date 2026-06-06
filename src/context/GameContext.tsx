@@ -7,7 +7,7 @@ import { toast } from "react-toastify";
 
 // ─── Bradbury Testnet Config (from docs.genlayer.com/developers/networks) ───
 const BRADBURY_CHAIN_ID = Number(import.meta.env.VITE_CHAIN_ID || 4221);
-const BRADBURY_RPC      = typeof window !== 'undefined' ? `${window.location.origin}/api/rpc` : import.meta.env.VITE_GENLAYER_RPC || "https://rpc.testnet-chain.genlayer.com";
+const BRADBURY_RPC      = "/api/rpc"; // Always use local proxy — never hit Cloudflare directly
 const BRADBURY_EXPLORER = import.meta.env.VITE_EXPLORER || "https://explorer-bradbury.genlayer.com";
 
 const BRADBURY_NETWORK_PARAMS = {
@@ -173,7 +173,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: 1,
         };
 
-        const response = await fetch(BRADBURY_RPC, {
+        const response = await fetch("/api/rpc", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(rpcBody),
@@ -548,7 +548,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // ── Refresh balance helper (called after txs) ─────────────────────────────
   const refreshBalance = async (address: string) => {
     try {
-      const response = await fetch(BRADBURY_RPC, {
+      const response = await fetch("/api/rpc", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", method: "eth_getBalance", params: [address, "latest"], id: 1 }),
