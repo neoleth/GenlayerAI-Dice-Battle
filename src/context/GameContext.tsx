@@ -7,7 +7,7 @@ import { toast } from "react-toastify";
 
 // ─── Bradbury Testnet Config (from docs.genlayer.com/developers/networks) ───
 const BRADBURY_CHAIN_ID = Number(import.meta.env.VITE_CHAIN_ID || 4221);
-const BRADBURY_RPC      = import.meta.env.VITE_GENLAYER_RPC || "https://rpc.testnet-chain.genlayer.com";
+const BRADBURY_RPC      = typeof window !== 'undefined' ? `${window.location.origin}/api/rpc` : import.meta.env.VITE_GENLAYER_RPC || "https://rpc.testnet-chain.genlayer.com";
 const BRADBURY_EXPLORER = import.meta.env.VITE_EXPLORER || "https://explorer-bradbury.genlayer.com";
 
 const BRADBURY_NETWORK_PARAMS = {

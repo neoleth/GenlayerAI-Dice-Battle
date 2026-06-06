@@ -31,7 +31,7 @@ import { createClient, chains } from "genlayer-js";
  * server-side (no CORS/Cloudflare blocking).
  */
 
-const BRADBURY_RPC = import.meta.env.VITE_GENLAYER_RPC || "https://rpc.testnet-chain.genlayer.com";
+const BRADBURY_RPC = typeof window !== 'undefined' ? `${window.location.origin}/api/rpc` : import.meta.env.VITE_GENLAYER_RPC || "https://rpc.testnet-chain.genlayer.com";
 
 // Make a deep copy to completely prevent genlayer-js from mutating the original objects
 const BRADBURY_CHAIN = JSON.parse(JSON.stringify(chains.testnetBradbury));
