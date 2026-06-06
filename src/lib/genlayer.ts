@@ -4,7 +4,7 @@ import { createClient, chains } from "genlayer-js";
  * GenLayer Testnet Bradbury
  * Chain ID:  4221
  * RPC:       https://rpc-bradbury.genlayer.com  (proxied via /api/rpc)
- * Explorer:  https://explorer-bradbury.genlayer.com
+ * Explorer:  https://zksync-os-testnet-genlayer.explorer.zksync.dev
  *
  * ROOT CAUSE FIX for "Unexpected token 'T', The page c... is not valid JSON":
  *

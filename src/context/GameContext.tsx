@@ -8,7 +8,7 @@ import { toast } from "react-toastify";
 // ─── Bradbury Testnet Config (from docs.genlayer.com/developers/networks) ───
 const BRADBURY_CHAIN_ID = Number(import.meta.env.VITE_CHAIN_ID || 4221);
 const BRADBURY_RPC      = "/api/rpc"; // Always use local proxy — never hit Cloudflare directly
-const BRADBURY_EXPLORER = import.meta.env.VITE_EXPLORER || "https://explorer-bradbury.genlayer.com";
+const BRADBURY_EXPLORER = import.meta.env.VITE_EXPLORER || "https://zksync-os-testnet-genlayer.explorer.zksync.dev";
 
 const BRADBURY_NETWORK_PARAMS = {
   chainId: `0x${BRADBURY_CHAIN_ID.toString(16)}`,

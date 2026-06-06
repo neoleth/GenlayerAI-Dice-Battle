@@ -39,7 +39,7 @@ export const GlobalTxTracker = () => {
 
           {txHash && (
             <a 
-              href={`${import.meta.env.VITE_EXPLORER || 'https://explorer-bradbury.genlayer.com'}/tx/${txHash}`}
+              href={`${import.meta.env.VITE_EXPLORER || 'https://zksync-os-testnet-genlayer.explorer.zksync.dev'}/tx/${txHash}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-between px-3 py-2 bg-[#1e1e24] rounded border border-[#2a2a2e] hover:border-[#d4af37]/30 transition-colors group mt-2"
