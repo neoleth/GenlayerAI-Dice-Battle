@@ -59,7 +59,7 @@ Requirements:
     res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
     res.header("Access-Control-Allow-Headers", "Content-Type");
 
-    const targetRpc = process.env.VITE_GENLAYER_RPC || "https://rpc.testnet-chain.genlayer.com";
+    const targetRpc = process.env.VITE_GENLAYER_RPC || "https://zksync-os-testnet-genlayer.zksync.dev";
     try {
       const response = await fetch(targetRpc, {
         method: "POST",

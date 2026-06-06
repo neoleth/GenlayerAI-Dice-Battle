@@ -31,7 +31,7 @@ import { createClient, chains } from "genlayer-js";
  * server-side (no CORS/Cloudflare blocking).
  */
 
-const FALLBACK_RPC = import.meta.env.VITE_GENLAYER_RPC || "https://rpc.testnet-chain.genlayer.com";
+const FALLBACK_RPC = import.meta.env.VITE_GENLAYER_RPC || "https://zksync-os-testnet-genlayer.zksync.dev";
 
 function getRpcUrl(): string {
   // Computed lazily at call-time, never at module load time.
