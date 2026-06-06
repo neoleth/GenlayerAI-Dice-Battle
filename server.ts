@@ -103,7 +103,7 @@ Requirements:
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    const rpc = process.env.VITE_GENLAYER_RPC || "https://rpc.testnet-chain.genlayer.com";
+    const rpc = process.env.VITE_GENLAYER_RPC || "https://zksync-os-testnet-genlayer.zksync.dev";
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`RPC proxy → ${rpc}`);
   });

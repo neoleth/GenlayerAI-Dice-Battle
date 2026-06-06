@@ -34,13 +34,7 @@ import { createClient, chains } from "genlayer-js";
 const FALLBACK_RPC = import.meta.env.VITE_GENLAYER_RPC || "https://zksync-os-testnet-genlayer.zksync.dev";
 
 function getRpcUrl(): string {
-  // Computed lazily at call-time, never at module load time.
-  // window.location.origin is safe here because this is only called
-  // after the browser has fully initialized.
-  if (typeof window !== "undefined" && window.location?.origin) {
-    return `${window.location.origin}/api/rpc`;
-  }
-  return FALLBACK_RPC;
+  return "/api/rpc";
 }
 
 function buildChain() {

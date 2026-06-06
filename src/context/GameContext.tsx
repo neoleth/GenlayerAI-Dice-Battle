@@ -7,13 +7,14 @@ import { toast } from "react-toastify";
 
 // ─── Bradbury Testnet Config (from docs.genlayer.com/developers/networks) ───
 const BRADBURY_CHAIN_ID = Number(import.meta.env.VITE_CHAIN_ID || 4221);
-const BRADBURY_RPC      = "/api/rpc"; // Always use local proxy — never hit Cloudflare directly
+const PROXY_RPC         = "/api/rpc"; // Always use local proxy — never hit Cloudflare directly
+const MM_RPC_URL        = import.meta.env.VITE_GENLAYER_RPC || "https://zksync-os-testnet-genlayer.zksync.dev";
 const BRADBURY_EXPLORER = import.meta.env.VITE_EXPLORER || "https://zksync-os-testnet-genlayer.explorer.zksync.dev";
 
 const BRADBURY_NETWORK_PARAMS = {
   chainId: `0x${BRADBURY_CHAIN_ID.toString(16)}`,
   chainName: "GenLayer Testnet Bradbury",
-  rpcUrls: [BRADBURY_RPC],
+  rpcUrls: [MM_RPC_URL],
   nativeCurrency: { name: "GEN Token", symbol: "GEN", decimals: 18 },
   blockExplorerUrls: [BRADBURY_EXPLORER],
 };
